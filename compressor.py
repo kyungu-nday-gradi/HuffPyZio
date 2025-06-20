@@ -1,16 +1,16 @@
-def assemble_bits_to_bytes(bit_string):
+def assembler_bits_en_octets(chaine_bits):
     """
     transforme une chaine en bits en octets.
     Gere le padding (ajout de bits'0') pour que la longueur soit un multiple de 8.
     retourn : tuple(bytes , padding)
     """
-    padding = (8-len (bit_string)%8)%8
-    bit_string +='0'*padding
-    byte_array = bytearray()
-    for i in range(0, len (bit_string),8):
-        byte = bit_string [i:i+8]
-        byte_array.append(int(byte,2))
-        return bytes(byte_array),padding
+    remplissage = (8-len (chaine_bits)%8)%8
+    chaine_bits +='0'* remplissage 
+    tableau_octets = bytearray()
+    for i in range(0, len (chaine_bits),8):
+        octet = chaine_bits [i:i+8]
+        tableau_octets.append(int(octet,2))
+        return bytes(tableau_octets),remplissage
 
 
 
