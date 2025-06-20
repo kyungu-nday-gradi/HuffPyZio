@@ -1,36 +1,36 @@
 import heapq
 
-def build_huffman_tree(frequencies):
+def construire_un_arbre_de_huffman(frequences):
     """"construit l'arbre de huffman à partir du dict de fréquences. retourne la racine de l'arbre."""
 
-    heap = [[freq, byte] for byte, freq in frequencies.items()]
+    heap = [[freq, bits] for bits, freq in frequences.items()]
     heapq.heapify(heap)
 
     while len(heap) > 1:
         #extraire les deux noeuds avec les freqences les plus faibles
 
-        left = heapq.heappop(heap)
-        right = heapq.heappop(heap)
+        gauche = heapq.heappop(heap)
+        droite = heapq.heappop(heap)
         #fusionner les deux noeuds: [samme de fréquences, [gauche, droite]]
-        merged = [left[0] + right[0], [left, right]]
-        heapq.heappush(heap, merged)
+        fusionner = [gauche[0] + droite[0], [gauche, droite]]
+        heapq.heappush(heap, fusionner)
 
     #retourne la racine de l'arbre de huffman
     return heap[0] if heap else None
 
-def generate_huffman_codes(tree):
+def generer_les_codes_de_huffman(arbre):
     codes = {}
 
-    def generate_codes_rec(node, current_code):
-        if isinstance(node[1], bytes):
+    def generer_les_codes_de_facon_recursive(node, code_actuel):
+        if isinstance(node[1], bits):
             #feuille: associer le code au caractère
-            codes[node[1]] = current_code
+            codes[node[1]] = code_actuel
             return
         #noeud interne: parcours récursif
-        left = node[1][0]
-        right = node[1][1]
-        generate_codes_rec(left, current_code + "0")
-        generate_codes_rec(right, current_code + "1")
-    if tree:
-        generate_codes_rec(tree, "")
+        gauche = node[1][0]
+        droite = node[1][1]
+        generer_les_codes_de_facon_recursive(gauche, code_actuel + "0")
+        generer_les_codes_de_facon_recursive(droite, code_actuel + "1")
+    if arbre:
+        generer_les_codes_de_facon_recursive(arbre, "")
     return codes
