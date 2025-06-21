@@ -1,87 +1,64 @@
-#!/usr/bin/env python3
-import sys
+# compressor.py
 
-def assembler_chaine_de_bits(fichier_source, codes_huffman):
+import os
+import json
+from module01 import calculer_frequences
+from module02 import construire_arbre_huffman, generer_codes
+
+def compresser_fichier(fichier_source: str, fichier_destination: str):
     """
-    Lit le fichier source en mode binaire, remplace chaque octet par son code Huffman,
-    et assemble une chaîne de bits (une succession de '0' et de '1').
+    Compresse le fichier source en utilisant l'algorithme de Huffman.
+    Le fichier compressé contient :
+      - Un header sérialisé (table des fréquences) permettant de reconstruire l'arbre.
+      - La taille du padding appliqué.
+      - Les données compressées.
+    Affiche également le taux de compression.
     """
+    # Étape 1 : Calcul des fréquences
+    frequences = calculer_frequences(fichier_source)
+    
+    # Étape 2 : Construction de l'arbre et génération des codes Huffman
+    arbre_huffman = construire_arbre_huffman(frequences)
+    codes = generer_codes(arbre_huffman)
+    
+    # Étape 3 : Réécriture du fichier source en remplaçant les octets par leurs codes
     chaine_bits = ""
-    with open(fichier_source, "rb") as fichier:
-        octet = fichier.read(1)
+    with open(fichier_source, "rb") as source:
+        octet = source.read(1)
         while octet:
-            if octet in codes_huffman:
-                code = codes_huffman[octet]
-            else:
-                # Vous pouvez choisir de gérer l'absence de code différemment (ex. lever une erreur)
-                raise ValueError(f"Aucun code Huffman pour l'octet {octet}")
-            chaine_bits += code
-            octet = fichier.read(1)
-    return chaine_bits
+            chaine_bits += codes[octet]
+            octet = source.read(1)
+    
+    # Gestion du padding : on complète avec des 0 pour que la longueur soit un multiple de 8
+    nombre_padding = (8 - len(chaine_bits) % 8) % 8
+    chaine_bits += "0" * nombre_padding
 
-def ajouter_padding(chaine_bits):
-    """
-    Ajoute le padding nécessaire à la chaîne de bits pour que sa longueur soit un multiple de 8.
-    Le premier octet de la chaîne finale contient l'information sur la quantité de padding ajoutée.
-    """
-    # Calcul du nombre de bits à ajouter
-    longueur_padding = (8 - len(chaine_bits) % 8) if (len(chaine_bits) % 8) != 0 else 0
-    # Stocke cette information sur 8 bits
-    info_padding = "{0:08b}".format(longueur_padding)
-    # Ajoute le padding à la chaîne principale
-    chaine_bits_paddee = chaine_bits + "0" * longueur_padding
-    # On préfixe l'information de padding
-    return info_padding + chaine_bits_paddee
+    # Transformation de la chaîne binaire en bytes
+    donnees_compressees = bytearray()
+    for i in range(0, len(chaine_bits), 8):
+        segment = chaine_bits[i:i+8]
+        donnees_compressees.append(int(segment, 2))
+    
+    # Sérialisation de la table de fréquences en JSON
+    # Pour JSON, on convertit les clés (bytes) en leur représentation entière
+    frequences_serialisables = {str(octet[0]): freq for octet, freq in frequences.items()}
+    header_str = json.dumps(frequences_serialisables)
+    header_bytes = header_str.encode("utf-8")
+    longueur_header = len(header_bytes)
 
-def chaine_bits_vers_octets(chaine_bits_paddee):
-    """
-    Convertit la chaîne de bits en une séquence d'octets.
-    Chaque groupe de 8 bits est transformé en entier, puis ajouté à une séquence d'octets.
-    """
-    tableau_octets = bytearray()
-    for i in range(0, len(chaine_bits_paddee), 8):
-        octet_str = chaine_bits_paddee[i:i+8]
-        tableau_octets.append(int(octet_str, 2))
-    return bytes(tableau_octets)
-
-def compresser_fichier(fichier_source, fichier_sortie, codes_huffman):
-    """
-    Module principal de compression :
-    - Assemble les codes Huffman en une chaîne de bits.
-    - Ajoute le padding si nécessaire.
-    - Convertit la chaîne en données binaires et l'écrit dans le fichier de sortie.
-    """
-    # Assemblage des codes Huffman
-    chaine_bits = assembler_chaine_de_bits(fichier_source, codes_huffman)
+    # Écriture dans le fichier destination en mode binaire
+    with open(fichier_destination, "wb") as destination:
+        # Écriture de la longueur du header (4 octets, big endian)
+        destination.write(longueur_header.to_bytes(4, byteorder="big"))
+        # Écriture du header (la table des fréquences)
+        destination.write(header_bytes)
+        # Écriture du padding (1 octet)
+        destination.write(nombre_padding.to_bytes(1, byteorder="big"))
+        # Écriture des données compressées
+        destination.write(donnees_compressees)
     
-    # Gestion du padding (et ajout de l'info sur le padding)
-    chaine_bits_paddee = ajouter_padding(chaine_bits)
-    
-    # Conversion en données binaires (octets)
-    donnees_compressees = chaine_bits_vers_octets(chaine_bits_paddee)
-    
-    # Écriture dans le fichier de sortie
-    with open(fichier_sortie, "wb") as fichier_sortie_obj:
-        fichier_sortie_obj.write(donnees_compressees)
-    
-    print(f"Compression terminée. Fichier compressé : {fichier_sortie}")
-
-if __name__ == "__main__":
-    # Exemple de dictionnaire de codes Huffman pour tester (à adapter selon votre algorithme)
-    codes_huffman = {
-        b'A': '101',
-        b'B': '100',
-        b'C': '0',
-        b'D': '111',
-        b'E': '110'
-        # Ajoutez ou modifiez les codes pour chaque octet présent dans votre fichier source
-    }
-    
-    if len(sys.argv) != 3:
-        print("Usage : python compressor.py fichier_source fichier_sortie")
-        sys.exit(1)
-        
-    fichier_source = sys.argv[1]
-    fichier_sortie = sys.argv[2]
-    
-    compresser_fichier(fichier_source, fichier_sortie, codes_huffman)
+    # Calcul et affichage du taux de compression
+    taille_source = os.path.getsize(fichier_source)
+    taille_compressee = os.path.getsize(fichier_destination)
+    taux_compression = 100 * (1 - taille_compressee / taille_source)
+    print(f"Taux de compression : {taux_compression:.2f}%")
