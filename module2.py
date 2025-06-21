@@ -1,32 +1,58 @@
-import heapq
-from module1 import noeud
+# huffman_tree.py
 
-def construire_un_arbre_de_huffman (frequences):
-    """"construit l'arbre de huffman à partir du dict de fréquences. retourne la racine de l'arbre."""
+class Noeud:
+    def __init__(self, frequence, symbole=None, gauche=None, droite=None):
+        """
+        Un nœud de l'arbre de Huffman.
+        - frequence : fréquence cumulée (int)
+        - symbole    : l'octet représenté (bytes) (None pour un nœud interne)
+        - gauche     : sous-arbre gauche (Noeud)
+        - droite     : sous-arbre droit (Noeud)
+        """
+        self.frequence = frequence
+        self.symbole = symbole
+        self.gauche = gauche
+        self.droite = droite
 
-    tas = [noeud(c, f) for c, f in frequences.items]
+    def __lt__(self, autre):
+        return self.frequence < autre.frequence
 
-    while len(tas) > 1:
-        #extraire les deux noeuds avec les freqences les plus faibles
 
-        gauche = heapq.heappop(tas)
-        droite = heapq.heappop(tas)
-        #fusionner les deux noeuds: [samme de fréquences, [gauche, droite]]
-        fusion = noeud = noeud[gauche[0] + droite[0], [gauche, droite]]
-        heapq.heappush(tas, fusion)
-    return tas[0]
+def construire_arbre_huffman(frequences: dict) -> Noeud:
+    """
+    Construit l'arbre de Huffman à partir d'un dictionnaire de fréquences.
+    Retourne la racine de l'arbre.
+    """
+    # Création d'une liste de nœuds pour chaque symbole
+    noeuds = [Noeud(freq, symbole) for symbole, freq in frequences.items()]
+    while len(noeuds) > 1:
+        # Trier les nœuds par ordre croissant de fréquence
+        noeuds.sort(key=lambda n: n.frequence)
+        # Extraire les deux nœuds ayant la plus faible fréquence
+        noeud_gauche = noeuds.pop(0)
+        noeud_droite = noeuds.pop(0)
+        # Fusionner ces deux nœuds dans un nouveau nœud interne
+        noeud_fusion = Noeud(noeud_gauche.frequence + noeud_droite.frequence,
+                              symbole=None,
+                              gauche=noeud_gauche,
+                              droite=noeud_droite)
+        noeuds.append(noeud_fusion)
+    return noeuds[0] if noeuds else None
 
-    #retourne la racine de l'arbre de huffman
-    return heap[0] if heap else None
 
-def generer_les_codes_de_huffman(noeud, prefixe="", codes={}):
+def generer_codes(noeud: Noeud, prefixe: str = "", codes: dict = None) -> dict:
+    """
+    Parcourt récursivement l'arbre pour générer le code binaire de chaque octet.
+    Retourne un dictionnaire {octet: code binaire (str)}.
+    """
+    if codes is None:
+        codes = {}
     if noeud is None:
-           return
-    #if noeud.caractere is not None:
-     #   codes [noeud.caractere] = prefixe
-    if noeud[1][0] is not None:
-         codes[noeud[1][0]] = prefixe
-         return
-    generer_les_codes_de_huffman(noeud[1][1], prefixe + '0', codes)
-    generer_les_codes_de_huffman(noeud[1][2], prefixe + '1', codes)
+        return codes
+    # Cas d'une feuille : associer le code
+    if noeud.symbole is not None:
+        codes[noeud.symbole] = prefixe or "0"  # Si l'arbre ne contient qu'un nœud
+    else:
+        generer_codes(noeud.gauche, prefixe + "0", codes)
+        generer_codes(noeud.droite, prefixe + "1", codes)
     return codes
